@@ -40,7 +40,7 @@ public:
     Car::Handling getHandling(){return mHandling;};
 
     /// @brief Force motors to be on by enabling motor drivers
-    void enableMotors();
+    static void enableMotors();
     /// @brief Force motors to be off by disabling motor drivers
     void disableMotors();
 
