@@ -21,57 +21,49 @@
 #define LOG_TAG "main"
 
 /* TEST CONTROLS */
-#define ALL_TEST    1
-#define LED_TEST    0
-#define LED_INT_TEST 1
-#define SERVO_TEST  0
-#define MOTOR_TEST  0
+#define ALL_TEST        1
+#define LED_TEST        0
+#define INT_LED_TEST    0
+#define STATUS_LED_TEST 0
+#define SERVO_TEST      0
+#define MOTOR_TEST      0
 
-#define HALF_SEC 500 / portTICK_PERIOD_MS
-#define REST 2*HALF_SEC
-#define TEST_REST 4*HALF_SEC
+#define HALF_SEC    500 / portTICK_PERIOD_MS
+#define REST        2*HALF_SEC
 
 #define ON  0
 #define OFF 1
+#define STATUS_ON 1
+#define STATUS_OFF 0
 
 /* PIN ASSIGNMENTS */
+#define RedLedPin GPIO_NUM_14
+#define GreenLedPin GPIO_NUM_26
+#define BlueLedPin GPIO_NUM_27
+
+#define RedIntLedPin GPIO_NUM_25
+#define GreenIntLedPin GPIO_NUM_33
+#define BlueIntLedPin GPIO_NUM_32
+
+#define StatusLedPin GPIO_NUM_22
+
+#define ServoPin GPIO_NUM_23
+
 #define RightMotorLeftPin 16
 #define RightMotorRightPin 4
 #define LeftMotorLeftPin 13
 #define LeftMotorRightPin 5
-
-#define IRLED GPIO_NUM_19
-#define IRDETECT GPIO_NUM_18
-
-#define ServoPin GPIO_NUM_23
-
-#define RedLedIntPin GPIO_NUM_25
-#define GreenLedIntPin GPIO_NUM_33
-#define BlueLedIntPin GPIO_NUM_32
-#define RedLedPin GPIO_NUM_14
-#define GreenLedPin GPIO_NUM_26
-#define BlueLedPin GPIO_NUM_27
 
 /* GLOBAL VARIABLES */
 LED *redLed;
 LED *blueLed;
 LED *greenLed;
 
-ServoMotor *servo;
-
-Motor *rightMotor;
-Motor *leftMotor;
-
 void setRGB(uint8_t aRed, uint8_t aBlue, uint8_t aGreen)
 {
     redLed->setBrightness(aRed);
     greenLed->setBrightness(aGreen);
     blueLed->setBrightness(aBlue);
-}
-
-void onReceiveIRData(uint16_t address, uint16_t data, bool isRepeat)
-{
-    ESP_LOGI("MAIN", "Address=%04X, Command=%04X\r\n\r\n", address, data);
 }
 
 extern "C" void app_main(void)
@@ -99,41 +91,53 @@ extern "C" void app_main(void)
         vTaskDelay(REST);
         ESP_LOGI(LOG_TAG,"...LED Test Stop");
         setRGB(0,0,0);
-        vTaskDelay(TEST_REST);
+        vTaskDelay(REST);
     }
 
-    if (ALL_TEST || LED_INT_TEST) {
-        gpio_reset_pin(RedLedIntPin);
-        gpio_reset_pin(GreenLedIntPin);
-        gpio_reset_pin(BlueLedIntPin);
-        gpio_set_direction(RedLedIntPin, GPIO_MODE_OUTPUT);
-        gpio_set_direction(GreenLedIntPin, GPIO_MODE_OUTPUT);
-        gpio_set_direction(BlueLedIntPin, GPIO_MODE_OUTPUT);
-        gpio_set_level(RedLedIntPin, OFF);
-        gpio_set_level(GreenLedIntPin, OFF);
-        gpio_set_level(BlueLedIntPin, OFF);
-
+    if (ALL_TEST || INT_LED_TEST) {
+        gpio_reset_pin(RedIntLedPin);
+        gpio_reset_pin(GreenIntLedPin);
+        gpio_reset_pin(BlueIntLedPin);
+        gpio_set_direction(RedIntLedPin, GPIO_MODE_OUTPUT);
+        gpio_set_direction(GreenIntLedPin, GPIO_MODE_OUTPUT);
+        gpio_set_direction(BlueIntLedPin, GPIO_MODE_OUTPUT);
+        gpio_set_level(RedIntLedPin, OFF);
+        gpio_set_level(GreenIntLedPin, OFF);
+        gpio_set_level(BlueIntLedPin, OFF);
 
         ESP_LOGI(LOG_TAG,"LED Internal Test Start...");
         ESP_LOGI(LOG_TAG,"Red");
-        gpio_set_level(RedLedIntPin, ON);
+        gpio_set_level(RedIntLedPin, ON);
         vTaskDelay(REST);
         ESP_LOGI(LOG_TAG,"Green");
-        gpio_set_level(RedLedIntPin, OFF);
-        gpio_set_level(GreenLedIntPin, ON);
+        gpio_set_level(RedIntLedPin, OFF);
+        gpio_set_level(GreenIntLedPin, ON);
         vTaskDelay(REST);
         ESP_LOGI(LOG_TAG,"Blue");
-        gpio_set_level(GreenLedIntPin, OFF);
-        gpio_set_level(BlueLedIntPin, ON);
+        gpio_set_level(GreenIntLedPin, OFF);
+        gpio_set_level(BlueIntLedPin, ON);
         vTaskDelay(REST);
         ESP_LOGI(LOG_TAG,"...LED Internal Test Stop");
-        gpio_set_level(BlueLedIntPin, OFF);
-        vTaskDelay(TEST_REST);
+        gpio_set_level(BlueIntLedPin, OFF);
+        vTaskDelay(REST);
+    }
+
+    if (ALL_TEST || STATUS_LED_TEST) {
+        gpio_reset_pin(StatusLedPin);
+        gpio_set_direction(StatusLedPin, GPIO_MODE_OUTPUT);
+        gpio_set_level(StatusLedPin, STATUS_OFF);
+
+        ESP_LOGI(LOG_TAG,"Status LED Test Start...");
+        gpio_set_level(StatusLedPin, STATUS_ON);
+        vTaskDelay(REST);
+        ESP_LOGI(LOG_TAG,"...Status LED Test Stop");
+        gpio_set_level(StatusLedPin, STATUS_OFF);
+        vTaskDelay(REST);
     }
 
     // Servo
     if (ALL_TEST || SERVO_TEST) {
-        servo = new ServoMotor(ServoPin);
+        ServoMotor *servo = new ServoMotor(ServoPin);
         
         ESP_LOGI(LOG_TAG,"Servo Test Start...");
         ESP_LOGI(LOG_TAG,"-90");
@@ -147,13 +151,13 @@ extern "C" void app_main(void)
         vTaskDelay(REST);
         ESP_LOGI(LOG_TAG,"...Servo Test Stop");
         servo->setAngle(-90);
-        vTaskDelay(TEST_REST);
+        vTaskDelay(REST);
     }
     
     // Motors
     if (ALL_TEST || MOTOR_TEST) {
-        leftMotor = new Motor(LeftMotorLeftPin, LeftMotorRightPin);
-        rightMotor = new Motor(RightMotorLeftPin, RightMotorRightPin);
+        Motor *leftMotor = new Motor(LeftMotorLeftPin, LeftMotorRightPin);
+        Motor *rightMotor = new Motor(RightMotorLeftPin, RightMotorRightPin);
         
         gpio_config_t motorSleepPinConfig;
         motorSleepPinConfig.pin_bit_mask = 1ULL << GPIO_NUM_17;
@@ -184,7 +188,7 @@ extern "C" void app_main(void)
         vTaskDelay(REST);
         ESP_LOGI(LOG_TAG,"...Motor Test Stop");
         rightMotor->setSpeed(0);
-        vTaskDelay(TEST_REST);
+        vTaskDelay(REST);
     }
 
     ESP_LOGI(LOG_TAG, "--- END TESTS ---");
