@@ -20,8 +20,21 @@
 
 #define LOG_TAG "main"
 
-#define HALF_SEC 500 / portTICK_PERIOD_MS
+/* TEST CONTROLS */
+#define ALL_TEST    1
+#define LED_TEST    0
+#define LED_INT_TEST 1
+#define SERVO_TEST  0
+#define MOTOR_TEST  0
 
+#define HALF_SEC 500 / portTICK_PERIOD_MS
+#define REST 2*HALF_SEC
+#define TEST_REST 4*HALF_SEC
+
+#define ON  0
+#define OFF 1
+
+/* PIN ASSIGNMENTS */
 #define RightMotorLeftPin 16
 #define RightMotorRightPin 4
 #define LeftMotorLeftPin 13
@@ -32,26 +45,22 @@
 
 #define ServoPin GPIO_NUM_23
 
+#define RedLedIntPin GPIO_NUM_25
+#define GreenLedIntPin GPIO_NUM_33
+#define BlueLedIntPin GPIO_NUM_32
 #define RedLedPin GPIO_NUM_14
-#define BlueLedPin GPIO_NUM_27
 #define GreenLedPin GPIO_NUM_26
-
-constexpr auto SpeedSetIRAddress = 0x1254;
+#define BlueLedPin GPIO_NUM_27
 
 /* GLOBAL VARIABLES */
-// Reminder: Make your variable names descriptive
-
-// TODO: Add your additional challenge variables
-// Syntax Hint: <Class name>* <variable name>;
-Motor *rightMotor;
-Motor *leftMotor;
 LED *redLed;
 LED *blueLed;
 LED *greenLed;
-int LEDState = 0;
+
 ServoMotor *servo;
-bool servoAscending = false;
-Transceiver *ir;
+
+Motor *rightMotor;
+Motor *leftMotor;
 
 void setRGB(uint8_t aRed, uint8_t aBlue, uint8_t aGreen)
 {
@@ -70,82 +79,115 @@ extern "C" void app_main(void)
     vTaskDelay(HALF_SEC);
     nvs_flash_init();
 
-    // Create motors, LEDs, servo, and IR tx
-    leftMotor = new Motor(LeftMotorLeftPin, LeftMotorRightPin);
-    rightMotor = new Motor(RightMotorLeftPin, RightMotorRightPin);
-    redLed = new LED(RedLedPin);
-    blueLed = new LED(BlueLedPin);
-    greenLed = new LED(GreenLedPin);
-    servo = new ServoMotor(ServoPin);
-    ir = new Transceiver(IRDETECT, IRLED);
+    ESP_LOGI(LOG_TAG, "--- BEGIN TESTS ---");
 
-    // Run each test
-    vTaskDelay(HALF_SEC);
     // LED
-    ESP_LOGI(LOG_TAG,"LED Test Start...");
-    ESP_LOGI(LOG_TAG,"Red");
-    setRGB(128, 0, 0);
-    vTaskDelay(HALF_SEC * 2);
-    ESP_LOGI(LOG_TAG,"Green");
-    setRGB(0,128,0);
-    vTaskDelay(HALF_SEC * 2);
-    ESP_LOGI(LOG_TAG,"Blue");
-    setRGB(0,0,128);
-    vTaskDelay(HALF_SEC * 2);
-    ESP_LOGI(LOG_TAG,"...LED Test Stop");
-    setRGB(0,0,0);
-    vTaskDelay(4*HALF_SEC);
+    if (ALL_TEST || LED_TEST) {
+        redLed = new LED(RedLedPin);
+        blueLed = new LED(BlueLedPin);
+        greenLed = new LED(GreenLedPin);
+
+        ESP_LOGI(LOG_TAG,"LED Test Start...");
+        ESP_LOGI(LOG_TAG,"Red");
+        setRGB(128, 0, 0);
+        vTaskDelay(REST);
+        ESP_LOGI(LOG_TAG,"Green");
+        setRGB(0,128,0);
+        vTaskDelay(REST);
+        ESP_LOGI(LOG_TAG,"Blue");
+        setRGB(0,0,128);
+        vTaskDelay(REST);
+        ESP_LOGI(LOG_TAG,"...LED Test Stop");
+        setRGB(0,0,0);
+        vTaskDelay(TEST_REST);
+    }
+
+    if (ALL_TEST || LED_INT_TEST) {
+        gpio_reset_pin(RedLedIntPin);
+        gpio_reset_pin(GreenLedIntPin);
+        gpio_reset_pin(BlueLedIntPin);
+        gpio_set_direction(RedLedIntPin, GPIO_MODE_OUTPUT);
+        gpio_set_direction(GreenLedIntPin, GPIO_MODE_OUTPUT);
+        gpio_set_direction(BlueLedIntPin, GPIO_MODE_OUTPUT);
+        gpio_set_level(RedLedIntPin, OFF);
+        gpio_set_level(GreenLedIntPin, OFF);
+        gpio_set_level(BlueLedIntPin, OFF);
+
+
+        ESP_LOGI(LOG_TAG,"LED Internal Test Start...");
+        ESP_LOGI(LOG_TAG,"Red");
+        gpio_set_level(RedLedIntPin, ON);
+        vTaskDelay(REST);
+        ESP_LOGI(LOG_TAG,"Green");
+        gpio_set_level(RedLedIntPin, OFF);
+        gpio_set_level(GreenLedIntPin, ON);
+        vTaskDelay(REST);
+        ESP_LOGI(LOG_TAG,"Blue");
+        gpio_set_level(GreenLedIntPin, OFF);
+        gpio_set_level(BlueLedIntPin, ON);
+        vTaskDelay(REST);
+        ESP_LOGI(LOG_TAG,"...LED Internal Test Stop");
+        gpio_set_level(BlueLedIntPin, OFF);
+        vTaskDelay(TEST_REST);
+    }
 
     // Servo
-    ESP_LOGI(LOG_TAG,"Servo Test Start...");
-    ESP_LOGI(LOG_TAG,"-90");
-    servo->setAngle(-90);
-    vTaskDelay(HALF_SEC * 2);
-    ESP_LOGI(LOG_TAG,"0");
-    servo->setAngle(0);
-    vTaskDelay(HALF_SEC * 2);
-    ESP_LOGI(LOG_TAG,"90");
-    servo->setAngle(90);
-    vTaskDelay(HALF_SEC * 2);
-    ESP_LOGI(LOG_TAG,"...Servo Test Stop");
-    servo->setAngle(-90);
-    vTaskDelay(4*HALF_SEC);
+    if (ALL_TEST || SERVO_TEST) {
+        servo = new ServoMotor(ServoPin);
+        
+        ESP_LOGI(LOG_TAG,"Servo Test Start...");
+        ESP_LOGI(LOG_TAG,"-90");
+        servo->setAngle(-90);
+        vTaskDelay(REST);
+        ESP_LOGI(LOG_TAG,"0");
+        servo->setAngle(0);
+        vTaskDelay(REST);
+        ESP_LOGI(LOG_TAG,"90");
+        servo->setAngle(90);
+        vTaskDelay(REST);
+        ESP_LOGI(LOG_TAG,"...Servo Test Stop");
+        servo->setAngle(-90);
+        vTaskDelay(TEST_REST);
+    }
     
     // Motors
-    gpio_config_t motorSleepPinConfig;
-    motorSleepPinConfig.pin_bit_mask = 1ULL << GPIO_NUM_17;
-    motorSleepPinConfig.mode = GPIO_MODE_OUTPUT;
-    motorSleepPinConfig.pull_up_en = GPIO_PULLUP_ENABLE;
-    motorSleepPinConfig.pull_down_en = GPIO_PULLDOWN_DISABLE;
-    motorSleepPinConfig.intr_type = GPIO_INTR_DISABLE;
-    gpio_config(&motorSleepPinConfig);
-    Car::enableMotors();
+    if (ALL_TEST || MOTOR_TEST) {
+        leftMotor = new Motor(LeftMotorLeftPin, LeftMotorRightPin);
+        rightMotor = new Motor(RightMotorLeftPin, RightMotorRightPin);
+        
+        gpio_config_t motorSleepPinConfig;
+        motorSleepPinConfig.pin_bit_mask = 1ULL << GPIO_NUM_17;
+        motorSleepPinConfig.mode = GPIO_MODE_OUTPUT;
+        motorSleepPinConfig.pull_up_en = GPIO_PULLUP_ENABLE;
+        motorSleepPinConfig.pull_down_en = GPIO_PULLDOWN_DISABLE;
+        motorSleepPinConfig.intr_type = GPIO_INTR_DISABLE;
+        gpio_config(&motorSleepPinConfig);
+        Car::enableMotors();
 
-    ESP_LOGI(LOG_TAG,"Motor Test Start...");
-    leftMotor->setSpeed(10000);
-    rightMotor->setSpeed(0);
-    ESP_LOGI(LOG_TAG,"Left Forward");
-    leftMotor->forward();
-    vTaskDelay(HALF_SEC * 2);
-    ESP_LOGI(LOG_TAG,"Left Backward");
-    leftMotor->reverse();
-    vTaskDelay(HALF_SEC * 2);
+        ESP_LOGI(LOG_TAG,"Motor Test Start...");
+        leftMotor->setSpeed(10000);
+        rightMotor->setSpeed(0);
+        ESP_LOGI(LOG_TAG,"Left Forward");
+        leftMotor->forward();
+        vTaskDelay(REST);
+        ESP_LOGI(LOG_TAG,"Left Backward");
+        leftMotor->reverse();
+        vTaskDelay(REST);
 
-    rightMotor->setSpeed(10000);
-    leftMotor->setSpeed(0);
-    ESP_LOGI(LOG_TAG,"Right Forward");
-    rightMotor->forward();
-    vTaskDelay(HALF_SEC * 2);
-    ESP_LOGI(LOG_TAG,"Right Backward");
-    rightMotor->reverse();
-    vTaskDelay(HALF_SEC * 2);
-    ESP_LOGI(LOG_TAG,"...Motor Test Stop");
-    rightMotor->setSpeed(0);
-    vTaskDelay(4*HALF_SEC);
+        rightMotor->setSpeed(10000);
+        leftMotor->setSpeed(0);
+        ESP_LOGI(LOG_TAG,"Right Forward");
+        rightMotor->forward();
+        vTaskDelay(REST);
+        ESP_LOGI(LOG_TAG,"Right Backward");
+        rightMotor->reverse();
+        vTaskDelay(REST);
+        ESP_LOGI(LOG_TAG,"...Motor Test Stop");
+        rightMotor->setSpeed(0);
+        vTaskDelay(TEST_REST);
+    }
 
-    // ir->mSetReceiveHandler(onReceiveIRData);
-    // ir->enableRx();
-    // ir->enableTx();
+    ESP_LOGI(LOG_TAG, "--- END TESTS ---");
 
     vTaskDelay(portMAX_DELAY); // delay Main Task 4 eva
 }
